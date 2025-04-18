@@ -11,20 +11,31 @@ import { BleClient } from '@capacitor-community/bluetooth-le';
   imports: [IonicModule, CommonModule]
 })
 export class GuiaVisualPage implements OnInit, OnDestroy {
+  // Lista de balizas detectadas
   beacons: any[] = [];
+
+  // Estado del escaneo BLE
   isScanning = false;
+
+  // Intensidad de señal y orientación relativa
   signalStrength = 0;
   directionAngle = 0;
   currentHeading = 0;
+
+  // Baliza actualmente seleccionada
   selectedBeacon: any = null;
+
+  // Confiabilidad del RSSI (baja varianza = señal estable)
   signalReliability: 'Alta' | 'Media' | 'Baja' = 'Alta';
 
+  // Variables auxiliares
   private orientationListener: any;
   private scanTimeout: any;
   private directionInterval: any;
   private rssiHistory: { [mac: string]: number[] } = {};
   lastNotificationTime = 0;
 
+  // Lista de MACs permitidas (filtro de balizas)
   allowedMacs: string[] = [
     'D8:DE:11:70:B3:0A',
     'F7:31:A1:31:5E:5B'
@@ -33,12 +44,14 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
   constructor(private alertController: AlertController) {}
 
   ngOnInit() {
+    // Inicializa BLE, brújula y actualizaciones de dirección al iniciar la vista
     this.initializeBle();
     this.startCompass();
     this.startDirectionUpdater();
   }
 
   ngOnDestroy() {
+    // Detiene procesos al salir de la vista
     this.stopScan();
     this.stopDirectionUpdater();
     window.removeEventListener('deviceorientationabsolute', this.orientationListener);
@@ -46,6 +59,7 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
 
   async initializeBle() {
     try {
+      // Inicialización de cliente BLE
       await BleClient.initialize();
       console.log('BLE initialized');
     } catch (error) {
@@ -59,6 +73,7 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
     this.rssiHistory = {};
 
     try {
+      // Solicita permisos de geolocalización si están disponibles
       if ('permissions' in navigator) {
         try {
           const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
@@ -70,21 +85,24 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
         }
       }
 
+      // Inicia escaneo BLE
       await BleClient.requestLEScan(
         {},
         (result) => {
+          // Procesa solo si hay una MAC válida
           if (!result?.device?.deviceId) return;
           const mac = result.device.deviceId.toUpperCase();
           this.processBeacon({ ...result, device: { deviceId: mac } });
         }
       );
 
+      // Finaliza escaneo automáticamente tras 15 segundos
       this.scanTimeout = setTimeout(() => {
         this.stopScan();
         if (this.beacons.length === 0) {
           this.showNoBeaconsAlert();
         } else if (!this.selectedBeacon) {
-          this.selectedBeacon = this.beacons[0];
+          this.selectedBeacon = this.beacons[0]; // Selecciona la más cercana
         }
       }, 15000);
 
@@ -95,6 +113,7 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
   }
 
   stopScan() {
+    // Detiene el escaneo BLE y elimina timeout
     BleClient.stopLEScan();
     this.isScanning = false;
     if (this.scanTimeout) {
@@ -104,6 +123,7 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
   }
 
   async showNoBeaconsAlert() {
+    // Alerta si no se detectan balizas
     const alert = await this.alertController.create({
       header: 'Sin balizas detectadas',
       message: 'No se han encontrado balizas BLE después de 15 segundos.',
@@ -113,6 +133,7 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
   }
 
   async showCalibrationTip() {
+    // Sugerencia de calibración de brújula
     const alert = await this.alertController.create({
       header: 'Calibración de brújula',
       message: 'Mueve el teléfono en forma de ∞ para mejorar la precisión de orientación.',
@@ -122,6 +143,7 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
   }
 
   async checkAlignmentAndNotify() {
+    // Notifica con un sonido si la dirección está alineada (dentro de margen)
     const margin = 2;
     const now = Date.now();
     const cooldown = 2000;
@@ -134,22 +156,22 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
 
       const audio = new Audio('assets/sounds/bell.mp3');
       audio.play().catch((e) => console.warn('Error al reproducir sonido', e));
-
     }
   }
 
-
   startCompass() {
+    // Escucha eventos de orientación absoluta del dispositivo
     this.orientationListener = (event: DeviceOrientationEvent) => {
       const heading = event.alpha ?? 0;
       this.currentHeading = heading;
-      this.updateDirection(); // Se actualiza también al mover el móvil
+      this.updateDirection(); // Actualiza dirección al rotar
     };
 
     window.addEventListener('deviceorientationabsolute', this.orientationListener, true);
   }
 
   startDirectionUpdater() {
+    // Refresca dirección y fiabilidad de señal cada 100 ms
     this.directionInterval = setInterval(() => {
       if (this.selectedBeacon) {
         const updated = this.beacons.find(b => b.address === this.selectedBeacon.address);
@@ -158,7 +180,7 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
           this.selectedBeacon.rssi = updated.rssi;
           this.selectedBeacon.distance = this.calculateDistance(updated.rssi);
           this.signalReliability = this.getSignalReliability(this.selectedBeacon.address);
-          this.updateDirection(); // También si cambia el RSSI
+          this.updateDirection();
         }
       }
     }, 100);
@@ -172,9 +194,11 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
   }
 
   processBeacon(result: any) {
+    // Filtra por MAC autorizada
     const mac = result.device.deviceId;
     if (!mac || !this.allowedMacs.includes(mac)) return;
 
+    // Guarda historial de RSSI para suavizar mediciones
     if (!this.rssiHistory[mac]) {
       this.rssiHistory[mac] = [];
     }
@@ -201,24 +225,27 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
       this.beacons[beaconIndex] = updatedBeacon;
     }
 
+    // Ordena las balizas por distancia
     this.beacons.sort((a, b) => a.distance - b.distance);
   }
 
   updateDirection() {
     if (!this.selectedBeacon) return;
 
+    // Calcula variación de ángulo basada en la señal
     const angleVariation = (100 - this.signalStrength) * 3.6;
     const correctedAngle = (this.currentHeading + angleVariation) % 360;
-    const targetAngle = correctedAngle;
 
-    let delta = targetAngle - this.directionAngle;
+    // Suaviza el cambio de dirección para evitar saltos bruscos
+    let delta = correctedAngle - this.directionAngle;
     delta = ((delta + 540) % 360) - 180;
-
     this.directionAngle += delta * 0.25;
+
     this.checkAlignmentAndNotify();
   }
 
   calculateDistance(rssi: number): number {
+    // Estima distancia basada en RSSI (modelo logarítmico)
     const txPower = -59;
     if (rssi === 0) return -1;
     const ratio = rssi / txPower;
@@ -228,12 +255,14 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
   }
 
   mapRssiToStrength(rssi: number): number {
+    // Convierte RSSI en porcentaje de intensidad de señal (0-100)
     if (rssi >= -50) return 100;
     if (rssi <= -100) return 0;
     return Math.round((rssi + 100) * 2);
   }
 
   getSignalReliability(mac: string): 'Alta' | 'Media' | 'Baja' {
+    // Calcula varianza de RSSI para estimar estabilidad de la señal
     const rssiValues = this.rssiHistory[mac];
     if (!rssiValues || rssiValues.length < 3) return 'Baja';
 
