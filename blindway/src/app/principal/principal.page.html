@@ -13,4 +13,29 @@
       <ion-title size="large">principal</ion-title>
     </ion-toolbar>
   </ion-header>
+  <ion-content fullscreen="true">
+    <div style="
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 5vw;
+    ">
+      <div style="width: 100%; max-width: 500px; text-align: center;">
+        <ion-title style="font-size: 1.5rem; margin-bottom: 1rem;">Bienvenido a BLINDWAY</ion-title>
+        <p style="font-size: 1.1rem; margin-bottom: 2rem;">Elige la función que vas a usar</p>
+  
+        <ion-button expand="block" size="large" style="height: 60px; font-size: 1.1rem; margin-bottom: 1.5rem;" (click)="goToVisual()">
+          GUIA VISUAL
+        </ion-button>
+  
+        <ion-button expand="block" size="large" style="height: 60px; font-size: 1.1rem;" (click)="goToSonora()">
+          GUIA SONORA
+        </ion-button>
+      </div>
+    </div>
+  </ion-content>
+  
+   
 </ion-content>

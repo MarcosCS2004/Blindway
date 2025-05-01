@@ -12,15 +12,14 @@
     "lint": "ng lint",
     "ionic:build": "npm run build",
     "ionic:serve": "npm run start -- --open"
-    
   },
   "browserslist": [
-  "Chrome >=79",
-  "ChromeAndroid >=79",
-  "Firefox >=70",
-  "Edge >=79",
-  "Safari >=14",
-  "iOS >=14"
+    "Chrome >=79",
+    "ChromeAndroid >=79",
+    "Firefox >=70",
+    "Edge >=79",
+    "Safari >=14",
+    "iOS >=14"
   ],
   "private": true,
   "dependencies": {
@@ -32,8 +31,8 @@
     "@angular/platform-browser": "^19.0.0",
     "@angular/platform-browser-dynamic": "^19.0.0",
     "@angular/router": "^19.0.0",
-    "@angular/service-worker": "^19.0.0",
-    "@capacitor-community/bluetooth-le": "7.0.0",
+    "@angular/service-worker": "^19.2.8",
+    "@capacitor-community/bluetooth-le": "^7.0.0",
     "@capacitor-community/media": "8.0.1",
     "@capacitor/android": "7.2.0",
     "@capacitor/app": "7.0.1",
