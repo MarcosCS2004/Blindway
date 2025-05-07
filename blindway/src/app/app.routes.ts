@@ -22,4 +22,9 @@ export const routes: Routes = [
     path: 'ajustes',
     loadComponent: () => import('./ajustes/ajustes.page').then( m => m.AjustesPage)
   },
+  {
+    path: 'llamada-emergencias',
+    loadComponent: () => import('./llamada-emergencias/llamada-emergencias.page').then( m => m.LlamadaEmergenciasPage)
+  },
+
 ];

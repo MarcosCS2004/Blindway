@@ -15,26 +15,43 @@
   </ion-header>
   <ion-content fullscreen="true">
     <div style="
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 5vw;
-    ">
-      <div style="width: 100%; max-width: 500px; text-align: center;">
-        <ion-title style="font-size: 1.5rem; margin-bottom: 1rem;">Bienvenido a BLINDWAY</ion-title>
-        <p style="font-size: 1.1rem; margin-bottom: 2rem;">Elige la función que vas a usar</p>
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 5vw;
+  ">
+    <div style="width: 100%; max-width: 500px; text-align: center;">
+      <ion-title style="font-size: 1.5rem; margin-bottom: 1rem;">Bienvenido a BLINDWAY</ion-title>
+      <p style="font-size: 1.1rem; margin-bottom: 2rem;">Elige la función que vas a usar</p>
   
-        <ion-button expand="block" size="large" style="height: 60px; font-size: 1.1rem; margin-bottom: 1.5rem;" (click)="goToVisual()">
-          GUIA VISUAL
-        </ion-button>
+      <!-- Contenedor principal para las columnas -->
+      <div style="display: flex; gap: 16px; width: 100%;">
+        <!-- Columna izquierda -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem;">
+          <ion-button expand="block" size="large" style="height: 60px; font-size: 1.1rem;" (click)="goToVisual()">
+            GUIA VISUAL
+          </ion-button>
   
-        <ion-button expand="block" size="large" style="height: 60px; font-size: 1.1rem;" (click)="goToSonora()">
-          GUIA SONORA
-        </ion-button>
+          <ion-button expand="block" size="large" style="height: 60px; font-size: 1.1rem;" (click)="goToSonora()">
+            GUIA SONORA
+          </ion-button>
+        </div>
+  
+        <!-- Columna derecha -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem;">
+          <ion-button expand="block" size="large" style="height: 60px; font-size: 1.1rem;" (click)="goToAjustes()">
+            AJUSTES
+          </ion-button>
+  
+          <ion-button expand="block" size="large" style="height: 60px; font-size: 1.1rem;" (click)="goToLlamada()">
+            LLAMADA DE AYUDA
+          </ion-button>
+        </div>
       </div>
     </div>
+  </div>
   </ion-content>
   
    

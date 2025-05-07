@@ -4,13 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { IonContent, IonHeader, IonTitle, IonToolbar, IonButtons , IonMenuButton, IonButton } from '@ionic/angular/standalone';
 
 @Component({
-  selector: 'app-ajustes',
-  templateUrl: './ajustes.page.html',
-  styleUrls: ['./ajustes.page.scss'],
+  selector: 'app-llamada-emergencias',
+  templateUrl: './llamada-emergencias.page.html',
+  styleUrls: ['./llamada-emergencias.page.scss'],
   standalone: true,
-  imports: [IonButton, IonButtons,IonMenuButton, IonContent, IonHeader, IonTitle, IonToolbar, CommonModule, FormsModule]
+  imports: [IonButton, IonButtons,IonMenuButton,IonContent, IonHeader, IonTitle, IonToolbar, CommonModule, FormsModule]
 })
-export class AjustesPage implements OnInit {
+export class LlamadaEmergenciasPage implements OnInit {
 
   constructor() { }
 

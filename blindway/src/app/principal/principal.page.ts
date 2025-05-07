@@ -26,4 +26,12 @@ export class PrincipalPage implements OnInit {
     this.router.navigate(['/guia-sonora']);
   }
 
+  goToAjustes(){
+    this.router.navigate(['/ajustes'])
+  }
+
+  goToLlamada(){
+    this.router.navigate(['/llamada-emergencias'])
+  }
+
 }
