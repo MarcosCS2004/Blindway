@@ -52,7 +52,7 @@ export class AppComponent {
     { title: 'Sonora', url: '/guia-sonora', icon: 'volume-high' },     
     { title: 'Guia Visual', url: '/guia-visual', icon: 'eye-outline' },
     { title: 'Ajustes', url: '/ajustes', icon: 'settings' },
-    { title: 'Llamada', url: '/llamada', icon: 'call' } 
+    { title: 'Llamada', url: '/llamada-emergencias', icon: 'call' } 
   ];
 
   constructor() {

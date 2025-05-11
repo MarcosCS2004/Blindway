@@ -1,2 +1,137 @@
 // For information on how to create your own theme, please see:
 // http://ionicframework.com/docs/theming/
+// variables.scss - Variables globales
+:root {
+    // Colores principales
+    --ion-color-primary: #06386D;       // Azul corporativo
+    --ion-color-secondary: #034714;     // Verde éxito
+    --ion-color-tertiary: #FFC107;      // Amarillo advertencia
+    --ion-color-danger: #871B16;        // Rojo error
+    --ion-color-medium: #9E9E9E;        // Gris medio
+    --ion-color-light: #FFFFFF;         // Fondo claro
+  
+    // Colores adicionales
+    --link-color: #1976D2;              // Color para enlaces
+    --disabled-opacity: 0.6;            // Opacidad para elementos deshabilitados
+  }
+  
+  // global.scss - Estilos generales
+  ion-content {
+    --background: var(--ion-color-light);
+    padding: 20px;
+  }
+  
+  // Estilos para textos y encabezados
+  h1 {
+    color: var(--ion-color-primary);
+    font-size: 1.8rem;
+    margin-bottom: 2rem;
+  }
+  
+  // Estilos para botones
+  ion-button {
+    &[color="primary"] {
+      --box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+  
+    &[color="secondary"] {
+      --background: var(--ion-color-medium);
+      --color: white;
+    }
+  
+    &:disabled {
+      opacity: var(--disabled-opacity);
+      cursor: not-allowed;
+    }
+  }
+
+/* Agrega esto en tu archivo de estilos global (global.scss) o en el componente correspondiente */
+
+ion-menu {
+    /* Color de fondo del menú */
+    --background: var(--ion-color-primary); /* Ejemplo: azul corporativo */
+  
+    /* Color del texto principal */
+    --ion-text-color:var(--ion-color-light); /* Blanco */
+  
+    /* Color de elementos interactivos */
+    --ion-item-background: transparent;
+    --ion-item-color: var(--ion-text-color);
+  
+    /* Estilos específicos para el header */
+    ion-list-header {
+      --color: #ffffff; /* Color del texto del header */
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+  
+    /* Estilos para los items del menú */
+    ion-item {
+
+      ion-icon {
+        color: var(--ion-color-light); 
+        margin-right: 12px;
+        font-size: 1.2rem;
+      }
+  
+      /* Estado activo/selected */
+      &.selected {
+        --background: var(--ion-color-secondary);
+        --color:var(--ion-color-light)
+      }
+    }
+  }
+  ion-header {
+    ion-toolbar {
+      --background: var(--ion-color-primary);
+      --color: var(--ion-color-primary-contrast);
+      --border-width: 0;
+    }
+  }
+  
+  // Mensajes de estado
+  .alert-message {
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    
+    &--success {
+      background: #E8F5E9;
+      color: var(--ion-color-secondary);
+      border-left: 4px solid var(--ion-color-secondary);
+    }
+  
+    &--warning {
+      background: #FFF3E0;
+      color: #FFA000;
+      border-left: 4px solid var(--ion-color-tertiary);
+    }
+  
+    &--error {
+      background: #FFEBEE;
+      color: var(--ion-color-danger);
+      border-left: 4px solid var(--ion-color-danger);
+    }
+  }
+  
+  // Enlace de recuperación
+  .password-recovery {
+    color: var(--link-color);
+    text-decoration: underline;
+    font-size: 0.9rem;
+    cursor: pointer;
+    
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+  
+  // Botón deshabilitado
+  .disabled-button {
+    --background: var(--ion-color-medium);
+    --color: white;
+    opacity: var(--disabled-opacity);
+  }
