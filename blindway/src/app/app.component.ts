@@ -43,7 +43,7 @@ import {
     IonIcon, 
     IonLabel, 
     IonRouterLink, 
-    IonRouterOutlet
+    IonRouterOutlet,
   ],
 })
 export class AppComponent {
