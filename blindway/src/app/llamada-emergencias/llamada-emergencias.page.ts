@@ -8,8 +8,7 @@ import {
   IonToolbar,
   IonButtons,
   IonMenuButton,
-  IonButton,
-} from '@ionic/angular/standalone';
+  IonButton, IonLabel, IonItem } from '@ionic/angular/standalone';
 
 import { CallNumber } from '@awesome-cordova-plugins/call-number/ngx';
 
@@ -18,7 +17,7 @@ import { CallNumber } from '@awesome-cordova-plugins/call-number/ngx';
   templateUrl: './llamada-emergencias.page.html',
   styleUrls: ['./llamada-emergencias.page.scss'],
   standalone: true,
-  imports: [
+  imports: [IonItem, IonLabel, 
     IonButton,
     IonButtons,
     IonMenuButton,
@@ -34,7 +33,7 @@ import { CallNumber } from '@awesome-cordova-plugins/call-number/ngx';
 export class LlamadaEmergenciasPage implements OnInit {
 
   constructor(private callNumber: CallNumber) {}
-
+  
   ngOnInit() {}
 
   hacerLlamada() {
