@@ -51,7 +51,6 @@ export class AppComponent {
     { title: 'Principal', url: '/principal', icon: 'home-sharp' },    
     { title: 'Sonora', url: '/guia-sonora', icon: 'volume-high' },     
     { title: 'Guia Visual', url: '/guia-visual', icon: 'eye-outline' },
-    { title: 'Ajustes', url: '/ajustes', icon: 'settings' },
     { title: 'Llamada', url: '/llamada-emergencias', icon: 'call' } 
   ];
 
