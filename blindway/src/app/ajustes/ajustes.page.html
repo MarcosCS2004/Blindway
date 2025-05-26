@@ -1,16 +1,104 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>Ajustes</ion-title>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
+<!-- Vista de Ajustes -->
+<ng-container *ngIf="!mostrarAcercaDe">
+  <ion-header [translucent]="true">
     <ion-toolbar>
-      <ion-title size="large">ajustes</ion-title>
+      <ion-buttons slot="start">
+        <ion-menu-button></ion-menu-button>
+      </ion-buttons>
+      <ion-title>Ajustes</ion-title>
     </ion-toolbar>
   </ion-header>
-</ion-content>
+
+  <ion-content [fullscreen]="true">
+    <ion-header collapse="condense">
+      <ion-toolbar>
+        <ion-title size="large">Ajustes</ion-title>
+      </ion-toolbar>
+    </ion-header>
+
+    <div style="display: flex; justify-content: center; align-items: center; height: 100%; padding: 16px;">
+      <ion-grid>
+
+        <!-- Selector de tamaño -->
+        <ion-row style="margin-bottom: 24px;">
+          <ion-col size="12">
+            <ion-item>
+              <ion-label style="font-size: 1.5rem;">Seleccionar tamaño</ion-label>
+            </ion-item>
+            <ion-radio-group [value]="tamanioSeleccionado" (ionChange)="onTamanioChange($event)">
+              <ion-item>
+                <ion-label>Pequeño</ion-label>
+                <ion-radio slot="end" value="pequeño"></ion-radio>
+              </ion-item>
+              <ion-item>
+                <ion-label>Medio</ion-label>
+                <ion-radio slot="end" value="medio"></ion-radio>
+              </ion-item>
+              <ion-item>
+                <ion-label>Grande</ion-label>
+                <ion-radio slot="end" value="grande"></ion-radio>
+              </ion-item>
+            </ion-radio-group>
+          </ion-col>
+        </ion-row>
+
+        <!-- Selector de tema -->
+        <ion-row style="margin-bottom: 24px;">
+          <ion-col size="12">
+            <ion-item>
+              <ion-label style="font-size: 1.5rem;">Seleccionar tema</ion-label>
+            </ion-item>
+            <ion-radio-group [value]="temaSeleccionado" (ionChange)="onTemaChange($event)">
+              <ion-item>
+                <ion-label>Claro</ion-label>
+                <ion-radio slot="end" value="claro"></ion-radio>
+              </ion-item>
+              <ion-item>
+                <ion-label>Oscuro</ion-label>
+                <ion-radio slot="end" value="oscuro"></ion-radio>
+              </ion-item>
+            </ion-radio-group>
+          </ion-col>
+        </ion-row>
+
+        <!-- Acerca de -->
+        <ion-row>
+          <ion-col size="12">
+            <ion-item button detail="false" (click)="onAcercaDe()">
+              <ion-label style="font-size: 1.5rem;">Acerca de</ion-label>
+            </ion-item>
+          </ion-col>
+        </ion-row>
+
+      </ion-grid>
+    </div>
+  </ion-content>
+</ng-container>
+
+<!-- Vista "Acerca de" -->
+<ng-container *ngIf="mostrarAcercaDe">
+  <ion-header>
+    <ion-toolbar color="primary">
+      <ion-buttons slot="start">
+        <ion-menu-button></ion-menu-button>
+      </ion-buttons>
+      <ion-title>Acerca de</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content class="ion-padding">
+    <ion-button fill="clear" (click)="volverAtras()" style="margin-bottom: 1rem;">
+      Volver
+    </ion-button>
+    <h2>Sobre esta aplicación</h2>
+    <p>
+      Esta aplicación está diseñada para facilitar la comparación de precios y mejorar la experiencia del usuario al comprar. 
+    </p>
+    <p>
+      Use el menú de navegación para acceder a las diferentes funciones y personalice su experiencia desde los ajustes.
+    </p>
+    <p>
+      ¡Gracias por utilizar nuestra app!
+    </p>
+  </ion-content>
+</ng-container>

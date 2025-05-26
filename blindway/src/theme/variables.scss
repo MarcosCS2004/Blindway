@@ -135,3 +135,91 @@ ion-menu {
     --color: white;
     opacity: var(--disabled-opacity);
   }
+
+/* Tamaños de fuente reforzados */
+
+.font-small, .font-small * {
+  font-size: 0.8rem !important;
+}
+
+.font-large, .font-large * {
+  font-size: 1.5rem !important;
+}
+
+
+/* Definición de clases de tema con variables CSS reales */
+
+/* ===============================
+   🌙 Tema Oscuro Accesible
+================================== */
+.theme-dark {
+  // Fondo y texto con alto contraste
+  --ion-background-color: #121212;      // Fondo más oscuro
+  --ion-text-color: #FAFAFA;            // Texto casi blanco
+
+  // Toolbar
+  --ion-toolbar-background: #1f1f1f;
+  --ion-toolbar-color: #ffffff;
+
+  // Items
+  --ion-item-background: #1f1f1f;
+  --ion-item-color: #ffffff;
+
+  // Colores accesibles
+  --ion-color-primary: #1976D2;         // Azul con contraste
+  --ion-color-secondary: #388E3C;       // Verde oscuro
+  --ion-color-tertiary: #FFB300;        // Amarillo suave
+  --ion-color-danger: #D32F2F;          // Rojo más vivo
+  --ion-color-medium: #9E9E9E;
+  --ion-color-light: #E0E0E0;
+
+  // Menú accesible
+  ion-menu {
+    --background: #121212;
+    --ion-text-color: #FAFAFA;
+    --ion-item-background: transparent;
+    --ion-item-color: #FAFAFA;
+
+    ion-list-header {
+      --color: #ffffff;
+      font-size: 1.6rem;
+      font-weight: bold;
+    }
+
+    ion-item.selected {
+      --background: var(--ion-color-secondary);
+      --color: #ffffff;
+    }
+
+    ion-icon {
+      color: #ffffff;
+      font-size: 1.4rem;
+    }
+  }
+
+  ion-button {
+
+    &[color="primary"] {
+      --background: var(--ion-color-primary);
+      --color: #ffffff;
+    }
+
+    &[color="secondary"] {
+      --background: var(--ion-color-secondary);
+      --color: #ffffff;
+    }
+
+    &:disabled {
+      opacity: var(--disabled-opacity);
+    }
+  }
+
+  ion-content {
+    --background: #121212;
+  }
+
+  ion-header ion-toolbar {
+    --background: var(--ion-toolbar-background);
+    --color: var(--ion-toolbar-color);
+  }
+}
