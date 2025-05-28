@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { 
   IonApp, 
@@ -23,6 +23,7 @@ import {
   settings,
   call // Icono añadido para llamada
 } from 'ionicons/icons';
+import { AjustesService } from './service/ajustes.service';
 
 @Component({
   selector: 'app-root',
@@ -46,7 +47,7 @@ import {
     IonRouterOutlet,
   ],
 })
-export class AppComponent {
+export class AppComponent implements OnInit{
   public appPages = [
     { title: 'Principal', url: '/principal', icon: 'home-sharp' },    
     { title: 'Sonora', url: '/guia-sonora', icon: 'volume-high' },     
@@ -55,7 +56,7 @@ export class AppComponent {
     { title: 'Llamada', url: '/llamada-emergencias', icon: 'call' } 
   ];
 
-  constructor() {
+  constructor(private ajustesService: AjustesService) {
     addIcons({ 
       homeSharp,
       volumeHigh,
@@ -63,5 +64,9 @@ export class AppComponent {
       settings,
       call // Icono añadido para llamada
     });
+  }
+    async ngOnInit() {
+    const ajustes = await this.ajustesService.cargarAjustes();
+    this.ajustesService.aplicarAjustes(ajustes); // ✅ Se aplican al arrancar la app
   }
 }

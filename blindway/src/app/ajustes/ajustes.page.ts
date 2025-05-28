@@ -15,58 +15,106 @@ import {
   IonRadio,
   IonLabel,
   IonItem,
-  IonRadioGroup, IonIcon } from '@ionic/angular/standalone';
-
+  IonRadioGroup, 
+  IonIcon,
+  IonToast // ✅ Para mostrar feedback al usuario
+} from '@ionic/angular/standalone';
+import { AjustesService } from '../service/ajustes.service';
 
 @Component({
   selector: 'app-ajustes',
   templateUrl: './ajustes.page.html',
   styleUrls: ['./ajustes.page.scss'],
   standalone: true,
-  imports: [IonIcon, 
-    IonRadioGroup,
-    IonItem,
-    IonLabel,
-    IonRadio,
-    IonGrid,
-    IonRow,
-    IonCol,
-    IonButton,
-    IonButtons,
-    IonMenuButton,
-    IonContent,
-    IonHeader,
-    IonTitle,
-    IonToolbar,
-    CommonModule,
-    FormsModule
+  imports: [
+    IonToast, IonIcon, IonRadioGroup, IonItem, IonLabel, IonRadio,
+    IonGrid, IonRow, IonCol, IonButton, IonButtons,
+    IonMenuButton, IonContent, IonHeader, IonTitle,
+    IonToolbar, CommonModule, FormsModule
   ]
 })
 export class AjustesPage implements OnInit {
-
-  tamanioSeleccionado: string = 'medio';
-  temaSeleccionado: string = 'claro';
-
-  constructor() { }
-
-  ngOnInit() {
-    this.aplicarTamanio(this.tamanioSeleccionado);
-    this.aplicarTema(this.temaSeleccionado);
-  }
-
-  onTamanioChange(event: any) {
-    this.tamanioSeleccionado = event.detail.value;
-    console.log('Tamaño seleccionado:', this.tamanioSeleccionado);
-    this.aplicarTamanio(this.tamanioSeleccionado);
-  }
-
-  onTemaChange(event: any) {
-    this.temaSeleccionado = event.detail.value;
-    console.log('Tema seleccionado:', this.temaSeleccionado);
-    this.aplicarTema(this.temaSeleccionado);
-  }
-
+  tamanioSeleccionado = 'medio';
+  temaSeleccionado = 'claro';
   mostrarAcercaDe = false;
+  
+  // ✅ Para mostrar feedback al usuario
+  showToast = false;
+  toastMessage = '';
+  toastColor = 'success';
+
+  constructor(private ajustesService: AjustesService) {}
+
+  async ngOnInit() {
+    console.log('AjustesPage ngOnInit iniciado');
+    try {
+      // ✅ Cargar ajustes con manejo de errores
+      const ajustes = await this.ajustesService.cargarAjustes();
+      console.log('Ajustes cargados en componente:', ajustes);
+      
+      this.tamanioSeleccionado = ajustes.tamanio || 'medio';
+      this.temaSeleccionado = ajustes.tema || 'claro';
+      
+      // ✅ Aplicar ajustes cargados
+      this.ajustesService.aplicarAjustes(ajustes);
+      
+      // ✅ Verificar si hay ajustes guardados para debug
+      const tieneAjustes = await this.ajustesService.tieneAjustesGuardados();
+      console.log('¿Tiene ajustes guardados?', tieneAjustes);
+      
+    } catch (error) {
+      console.error('Error al cargar ajustes en ngOnInit:', error);
+      this.mostrarMensaje('Error al cargar ajustes', 'danger');
+    }
+  }
+
+  async onTamanioChange(event: any) {
+    console.log('Cambio de tamaño detectado:', event.detail.value);
+    this.tamanioSeleccionado = event.detail.value;
+    await this.guardar();
+  }
+
+  async onTemaChange(event: any) {
+    console.log('Cambio de tema detectado:', event.detail.value);
+    this.temaSeleccionado = event.detail.value;
+    await this.guardar();
+  }
+
+  async guardar() {
+    console.log('Guardando ajustes...');
+    try {
+      const ajustes = {
+        tamanio: this.tamanioSeleccionado,
+        tema: this.temaSeleccionado
+      };
+      
+      console.log('Ajustes a guardar:', ajustes);
+      
+      // ✅ Guardar ajustes
+      await this.ajustesService.guardarAjustes(ajustes);
+      
+      // ✅ Aplicar ajustes inmediatamente
+      this.ajustesService.aplicarAjustes(ajustes);
+      
+      // ✅ Mostrar feedback al usuario
+      this.mostrarMensaje('Ajustes guardados correctamente', 'success');
+      
+      // ✅ Verificar que realmente se guardaron
+      const ajustesGuardados = await this.ajustesService.cargarAjustes();
+      console.log('Verificación - ajustes después de guardar:', ajustesGuardados);
+      
+    } catch (error) {
+      console.error('Error al guardar ajustes:', error);
+      this.mostrarMensaje('Error al guardar ajustes', 'danger');
+    }
+  }
+
+  // ✅ Método para mostrar mensajes al usuario
+  private mostrarMensaje(mensaje: string, color: string) {
+    this.toastMessage = mensaje;
+    this.toastColor = color;
+    this.showToast = true;
+  }
 
   onAcercaDe() {
     this.mostrarAcercaDe = true;
@@ -76,35 +124,19 @@ export class AjustesPage implements OnInit {
     this.mostrarAcercaDe = false;
   }
 
-
-  private aplicarTamanio(tamanio: string) {
-    const body = document.body;
-    body.classList.remove('font-small', 'font-medium', 'font-large');
-
-    switch (tamanio) {
-      case 'pequeño':
-        body.classList.add('font-small');
-        break;
-      case 'medio':
-        body.classList.add('font-medium');
-        break;
-      case 'grande':
-        body.classList.add('font-large');
-        break;
-    }
-  }
-
-  private aplicarTema(tema: string) {
-    const body = document.body;
-    body.classList.remove('theme-light', 'theme-dark');
-
-    switch (tema) {
-      case 'claro':
-        body.classList.add('theme-light');
-        break;
-      case 'oscuro':
-        body.classList.add('theme-dark');
-        break;
+  // ✅ Método para testing manual
+  async verificarStorage() {
+    try {
+      const ajustes = await this.ajustesService.cargarAjustes();
+      console.log('Verificación manual - ajustes actuales:', ajustes);
+      
+      const tieneAjustes = await this.ajustesService.tieneAjustesGuardados();
+      console.log('Verificación manual - tiene ajustes:', tieneAjustes);
+      
+      this.mostrarMensaje(`Ajustes: ${JSON.stringify(ajustes)}`, 'primary');
+    } catch (error) {
+      console.error('Error en verificación:', error);
+      this.mostrarMensaje('Error en verificación', 'danger');
     }
   }
 }
