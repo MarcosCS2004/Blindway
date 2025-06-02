@@ -3,13 +3,13 @@
   <ion-header [translucent]="true">
     <ion-toolbar>
       <ion-buttons slot="start">
-        <ion-menu-button></ion-menu-button>
+        <ion-menu-button aria-label="Abrir menú de navegación"></ion-menu-button>
       </ion-buttons>
-      <ion-title>Ajustes</ion-title>
+      <ion-title id="tituloAjustes">Ajustes</ion-title>
     </ion-toolbar>
   </ion-header>
 
-  <ion-content [fullscreen]="true">
+  <ion-content [fullscreen]="true" role="main" aria-labelledby="tituloAjustes">
     <ion-header collapse="condense">
       <ion-toolbar>
         <ion-title size="large">Ajustes</ion-title>
@@ -23,20 +23,24 @@
         <ion-row style="margin-bottom: 24px;">
           <ion-col size="12">
             <ion-item>
-              <ion-label style="font-size: 1.5rem;">Seleccionar tamaño</ion-label>
+              <ion-label id="labelTamanio" style="font-size: 1.5rem;">Seleccionar tamaño</ion-label>
             </ion-item>
-            <ion-radio-group [value]="tamanioSeleccionado" (ionChange)="onTamanioChange($event)">
+            <ion-radio-group
+              [value]="tamanioSeleccionado"
+              (ionChange)="onTamanioChange($event)"
+              aria-labelledby="labelTamanio"
+              role="radiogroup">
               <ion-item>
                 <ion-label>Pequeño</ion-label>
-                <ion-radio slot="end" value="pequeño"></ion-radio>
+                <ion-radio slot="end" value="pequeño" aria-label="Tamaño pequeño"></ion-radio>
               </ion-item>
               <ion-item>
                 <ion-label>Medio</ion-label>
-                <ion-radio slot="end" value="medio"></ion-radio>
+                <ion-radio slot="end" value="medio" aria-label="Tamaño medio"></ion-radio>
               </ion-item>
               <ion-item>
                 <ion-label>Grande</ion-label>
-                <ion-radio slot="end" value="grande"></ion-radio>
+                <ion-radio slot="end" value="grande" aria-label="Tamaño grande"></ion-radio>
               </ion-item>
             </ion-radio-group>
           </ion-col>
@@ -46,16 +50,20 @@
         <ion-row style="margin-bottom: 24px;">
           <ion-col size="12">
             <ion-item>
-              <ion-label style="font-size: 1.5rem;">Seleccionar tema</ion-label>
+              <ion-label id="labelTema" style="font-size: 1.5rem;">Seleccionar tema</ion-label>
             </ion-item>
-            <ion-radio-group [value]="temaSeleccionado" (ionChange)="onTemaChange($event)">
+            <ion-radio-group
+              [value]="temaSeleccionado"
+              (ionChange)="onTemaChange($event)"
+              aria-labelledby="labelTema"
+              role="radiogroup">
               <ion-item>
                 <ion-label>Claro</ion-label>
-                <ion-radio slot="end" value="claro"></ion-radio>
+                <ion-radio slot="end" value="claro" aria-label="Tema claro"></ion-radio>
               </ion-item>
               <ion-item>
                 <ion-label>Oscuro</ion-label>
-                <ion-radio slot="end" value="oscuro"></ion-radio>
+                <ion-radio slot="end" value="oscuro" aria-label="Tema oscuro"></ion-radio>
               </ion-item>
             </ion-radio-group>
           </ion-col>
@@ -64,7 +72,7 @@
         <!-- Acerca de -->
         <ion-row>
           <ion-col size="12">
-            <ion-item button detail="false" (click)="onAcercaDe()">
+            <ion-item button detail="false" (click)="onAcercaDe()" aria-label="Ir a información acerca de la aplicación">
               <ion-label style="font-size: 1.5rem;">Acerca de</ion-label>
             </ion-item>
           </ion-col>
@@ -80,19 +88,23 @@
   <ion-header>
     <ion-toolbar color="primary">
       <ion-buttons slot="start">
-        <ion-menu-button></ion-menu-button>
+        <ion-menu-button aria-label="Abrir menú de navegación"></ion-menu-button>
       </ion-buttons>
-      <ion-title>Acerca de</ion-title>
+      <ion-title id="tituloAcerca">Acerca de</ion-title>
     </ion-toolbar>
   </ion-header>
 
-  <ion-content class="ion-padding">
-    <ion-button fill="clear" (click)="volverAtras()" style="margin-bottom: 1rem;">
+  <ion-content class="ion-padding" role="main" aria-labelledby="tituloAcerca">
+    <ion-button
+      fill="clear"
+      (click)="volverAtras()"
+      style="margin-bottom: 1rem;"
+      aria-label="Volver a la vista de ajustes">
       Volver
     </ion-button>
     <h2>Sobre esta aplicación</h2>
     <p>
-      Esta aplicación está diseñada para facilitar la comparación de precios y mejorar la experiencia del usuario al comprar. 
+      Esta aplicación está diseñada para facilitar la comparación de precios y mejorar la experiencia del usuario al comprar.
     </p>
     <p>
       Use el menú de navegación para acceder a las diferentes funciones y personalice su experiencia desde los ajustes.

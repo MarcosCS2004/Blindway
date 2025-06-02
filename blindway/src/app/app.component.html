@@ -1,25 +1,52 @@
 <ion-app>
   <ion-split-pane contentId="main-content">
-    <ion-menu contentId="main-content" type="overlay">
+    
+    <!-- Menú lateral con descripción accesible -->
+    <ion-menu contentId="main-content" type="overlay" aria-label="Menú de navegación principal" role="navigation">
       <ion-content>
         <ion-list id="inbox-list">
-          <img src="/assets/logos/logo.png"
-          style="width: 20%;" alt="imagen del logo">
-          <ion-list-header>Blindway</ion-list-header>
           
-          <ion-note></ion-note>
+          <!-- Logotipo con texto alternativo adecuado -->
+          <img 
+            src="/assets/logos/logo.png"
+            style="width: 20%;" 
+            alt="Logotipo de Blindway" 
+            role="img" />
 
+          <!-- Encabezado accesible con ARIA -->
+          <ion-list-header role="heading" aria-level="2">Blindway</ion-list-header>
+
+          <!-- Nota oculta si no tiene uso -->
+          <ion-note aria-hidden="true" hidden></ion-note>
+
+          <!-- Iteración de opciones del menú -->
           @for (p of appPages; track p; let i = $index) {
             <ion-menu-toggle auto-hide="false">
-              <ion-item routerDirection="root" [routerLink]="[p.url]" lines="none" detail="false" routerLinkActive="selected">
-                <ion-icon [name]="p.icon"></ion-icon>
+              <ion-item
+                routerDirection="root"
+                [routerLink]="[p.url]"
+                lines="none"
+                detail="false"
+                routerLinkActive="selected"
+                role="link"
+                tabindex="0"
+                [attr.aria-label]="p.title">
+                
+                <!-- Icono decorativo oculto para lectores de pantalla -->
+                <ion-icon [name]="p.icon" aria-hidden="true"></ion-icon>
+
+                <!-- Etiqueta accesible -->
                 <ion-label>{{ p.title }}</ion-label>
               </ion-item>
             </ion-menu-toggle>
           }
+
         </ion-list>
       </ion-content>
     </ion-menu>
-    <ion-router-outlet id="main-content"></ion-router-outlet>
+
+    <!-- Zona principal de contenido de la app -->
+    <ion-router-outlet id="main-content" role="main"></ion-router-outlet>
+    
   </ion-split-pane>
 </ion-app>

@@ -52,10 +52,7 @@ export class AppComponent implements OnInit{
     { title: 'Principal', url: '/principal', icon: 'home-sharp' },    
     { title: 'Sonora', url: '/guia-sonora', icon: 'volume-high' },     
     { title: 'Guia Visual', url: '/guia-visual', icon: 'eye-outline' },
-<<<<<<< Updated upstream
     { title: 'Ajustes', url: '/ajustes', icon: 'settings' }, 
-=======
->>>>>>> Stashed changes
     { title: 'Llamada', url: '/llamada-emergencias', icon: 'call' } 
   ];
 
