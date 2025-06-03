@@ -17,7 +17,7 @@ import { CallNumber } from '@awesome-cordova-plugins/call-number/ngx';
   templateUrl: './llamada-emergencias.page.html',
   styleUrls: ['./llamada-emergencias.page.scss'],
   standalone: true,
-  imports: [IonItem, IonLabel, 
+  imports: [ 
     IonButton,
     IonButtons,
     IonMenuButton,

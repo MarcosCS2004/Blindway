@@ -1,35 +1,53 @@
+<!-- Encabezado principal con barra de herramientas -->
 <ion-header [translucent]="true">
   <ion-toolbar>
+    <!-- Botón para abrir el menú lateral -->
     <ion-buttons slot="start">
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
+    <!-- Título de la página -->
     <ion-title>Guia Visual</ion-title>
   </ion-toolbar>
 </ion-header>
 
+<!-- Contenido principal de la página -->
 <ion-content [fullscreen]="true">
+  <!-- Encabezado que se muestra al hacer scroll hacia abajo -->
   <ion-header collapse="condense">
     <ion-toolbar>
+      <!-- Título grande que se condensa al hacer scroll -->
       <ion-title size="large">guiaVisual</ion-title>
     </ion-toolbar>
   </ion-header>
+
+  <!-- Contenedor principal del contenido de la guía -->
   <div class="tracking-container">
-    <!-- Dirección y distancia -->
+
+    <!-- Sección de dirección y distancia si hay una baliza seleccionada -->
     <div class="direction-indicator" *ngIf="selectedBeacon">
+      <!-- Brújula con flecha giratoria -->
       <div class="compass">
         <div class="arrow" [style.transform]="'rotate(' + (directionAngle % 360) + 'deg)'"></div>
       </div>
+
+      <!-- Información de la baliza seleccionada -->
       <div class="beacon-info">
         <h3>{{ selectedBeacon.name }}</h3>
         <p class="mac-address">{{ selectedBeacon.address }}</p>
+
+        <!-- Distancia estimada -->
         <div class="distance">
           <ion-icon name="navigate-outline"></ion-icon>
           {{ selectedBeacon.distance?.toFixed(1) }} m
         </div>
+
+        <!-- Nivel de señal en porcentaje -->
         <div class="signal">
           <ion-icon name="wifi-outline"></ion-icon>
           {{ signalStrength }}%
         </div>
+
+        <!-- Indicador visual de la fiabilidad de la señal -->
         <div class="reliability-indicator">
           <ion-chip [color]="
             signalReliability === 'Alta' ? 'success' :
@@ -38,6 +56,8 @@
             <ion-label>Señal: {{ signalReliability }}</ion-label>
           </ion-chip>
         </div>
+
+        <!-- Botón para mostrar consejo de calibración de la brújula -->
         <div class="calibration-tip">
           <ion-button fill="clear" size="small" (click)="showCalibrationTip()">
             <ion-icon name="compass-outline" slot="start"></ion-icon>
@@ -47,30 +67,33 @@
       </div>
     </div>
 
-    <!-- Lista de balizas -->
+    <!-- Lista de balizas encontradas -->
     <ion-list lines="full" *ngIf="beacons.length > 0">
       <ion-item 
         *ngFor="let beacon of beacons"
         (click)="selectedBeacon = beacon"
         [class.selected]="selectedBeacon?.address === beacon.address">
+        <!-- Información básica de cada baliza -->
         <ion-label>
           <h2>{{ beacon.name || 'Unknown Beacon' }}</h2>
           <p class="mac-address">{{ beacon.address }}</p>
           <div class="beacon-details">
+            <!-- Distancia -->
             <span><ion-icon name="navigate-outline"></ion-icon> {{ beacon.distance.toFixed(1) }} m</span>
+            <!-- RSSI (potencia de la señal) -->
             <span><ion-icon name="pulse-outline"></ion-icon> RSSI: {{ beacon.rssi }}</span>
           </div>
         </ion-label>
       </ion-item>
     </ion-list>
 
-    <!-- Sin balizas -->
+    <!-- Mensaje de estado vacío cuando no hay balizas encontradas -->
     <div class="empty-state" *ngIf="beacons.length === 0 && !isScanning">
       <ion-icon name="bluetooth-outline" size="large"></ion-icon>
       <p>No se encontraron beacons</p>
     </div>
 
-    <!-- Botón escaneo -->
+    <!-- Botón para iniciar o detener el escaneo de balizas -->
     <div class="scan-button-container">
       <ion-button expand="block" shape="round" (click)="isScanning ? stopScan() : startScan()"
         [disabled]="isScanning">

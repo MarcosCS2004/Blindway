@@ -38,7 +38,9 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
   // Lista de MACs permitidas (filtro de balizas)
   allowedMacs: string[] = [
     'D8:DE:11:70:B3:0A',
-    'F7:31:A1:31:5E:5B'
+    'F7:31:A1:31:5E:5B',
+    'D7:9B:16:04:4C:C0',
+    'F5:16:21:95:E9:C2'
   ];
 
   constructor(private alertController: AlertController) {}

@@ -27,7 +27,7 @@ import { AjustesService } from '../service/ajustes.service';
   styleUrls: ['./ajustes.page.scss'],
   standalone: true,
   imports: [
-    IonToast, IonIcon, IonRadioGroup, IonItem, IonLabel, IonRadio,
+    IonRadioGroup, IonItem, IonLabel, IonRadio,
     IonGrid, IonRow, IonCol, IonButton, IonButtons,
     IonMenuButton, IonContent, IonHeader, IonTitle,
     IonToolbar, CommonModule, FormsModule
