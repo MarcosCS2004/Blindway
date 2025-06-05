@@ -15,21 +15,23 @@ import {
   IonRouterOutlet, 
   IonRouterLink 
 } from '@ionic/angular/standalone';
+
 import { addIcons } from 'ionicons';
 import { 
   homeSharp,          
   volumeHigh,          
   eyeOutline,          
   settings,
-  call // Icono añadido para llamada
+  call // Icono para la opción de llamada de emergencia
 } from 'ionicons/icons';
+
 import { AjustesService } from './service/ajustes.service';
 
 @Component({
-  selector: 'app-root',
-  templateUrl: 'app.component.html',
-  styleUrls: ['app.component.scss'],
-  imports: [
+  selector: 'app-root',  // Selector principal de la app
+  templateUrl: 'app.component.html',  // Archivo de plantilla HTML
+  styleUrls: ['app.component.scss'],  // Archivo de estilos SCSS
+  imports: [                      // Importación de componentes y directivas necesarias
     RouterLink, 
     RouterLinkActive, 
     IonApp, 
@@ -47,7 +49,9 @@ import { AjustesService } from './service/ajustes.service';
     IonRouterOutlet,
   ],
 })
-export class AppComponent implements OnInit{
+export class AppComponent implements OnInit {
+
+  // Definición de las páginas que aparecen en el menú lateral con título, ruta y icono
   public appPages = [
     { title: 'Principal', url: '/principal', icon: 'home-sharp' },    
     { title: 'Sonora', url: '/guia-sonora', icon: 'volume-high' },     
@@ -57,16 +61,20 @@ export class AppComponent implements OnInit{
   ];
 
   constructor(private ajustesService: AjustesService) {
+    // Registro de los iconos personalizados que se usarán en el menú
     addIcons({ 
       homeSharp,
       volumeHigh,
       eyeOutline,
       settings,
-      call // Icono añadido para llamada
+      call // Icono de llamada agregado
     });
   }
-    async ngOnInit() {
+
+  // Método del ciclo de vida Angular que se ejecuta al inicializar el componente
+  async ngOnInit() {
+    // Carga los ajustes guardados y los aplica al iniciar la app
     const ajustes = await this.ajustesService.cargarAjustes();
-    this.ajustesService.aplicarAjustes(ajustes); // ✅ Se aplican al arrancar la app
+    this.ajustesService.aplicarAjustes(ajustes); 
   }
 }

@@ -1,20 +1,27 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
+    <!-- Botón de menú lateral ubicado al inicio -->
     <ion-buttons slot="start">
       <ion-menu-button aria-label="Abrir menú de navegación"></ion-menu-button>
     </ion-buttons>
+    <!-- Título de la página accesible mediante ID -->
     <ion-title id="tituloPagina">Llamada de Ayuda</ion-title>
   </ion-toolbar>
 </ion-header>
 
+<!-- Contenido principal de la página -->
 <ion-content [fullscreen]="true" class="ion-padding" role="main" aria-labelledby="tituloPagina">
+  <!-- Cabecera comprimida (se muestra en scroll hacia arriba) -->
   <ion-header collapse="condense">
     <ion-toolbar>
+      <!-- Título que aparece cuando se condensa la cabecera -->
       <ion-title size="large">Llamada de Emergencias</ion-title>
     </ion-toolbar>
   </ion-header>
 
+  <!-- Contenedor centrado vertical y horizontalmente -->
   <div class="center-content" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+    <!-- Botón de emergencia de color rojo (danger) y tamaño grande -->
     <ion-button expand="block"
                 size="large"
                 color="danger"

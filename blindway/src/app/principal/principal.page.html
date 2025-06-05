@@ -1,19 +1,26 @@
+<!-- Encabezado superior de la página, translúcido para integrarse con el contenido -->
 <ion-header [translucent]="true">
   <ion-toolbar>
+    <!-- Botón del menú lateral (hamburguesa) en la parte izquierda -->
     <ion-buttons slot="start">
       <ion-menu-button aria-label="Abrir menú de navegación principal"></ion-menu-button>
     </ion-buttons>
+    <!-- Título principal de la página -->
     <ion-title id="pageTitle">Principal</ion-title>
   </ion-toolbar>
 </ion-header>
 
+<!-- Contenido principal de la página, ocupa toda la pantalla -->
 <ion-content [fullscreen]="true" role="main" aria-labelledby="bienvenidaTitulo">
+
+  <!-- Encabezado colapsable que aparece al hacer scroll -->
   <ion-header collapse="condense">
     <ion-toolbar>
       <ion-title size="large">Principal</ion-title>
     </ion-toolbar>
   </ion-header>
 
+  <!-- Contenedor principal centrado en la pantalla -->
   <div style="
     height: 100%;
     display: flex;
@@ -22,12 +29,17 @@
     align-items: center;
     padding: 5vw;
   ">
+
+    <!-- Contenedor limitado en anchura con contenido alineado al centro -->
     <div style="width: 100%; max-width: 500px; text-align: center;">
+
+      <!-- Imagen del logotipo de la aplicación -->
       <img src="assets/logos/logo.png" 
            alt="Logotipo de la aplicación Blindway" 
            class="demo-image"
            style="height: 25%; margin: 1rem;">
-      
+
+      <!-- Título de bienvenida accesible -->
       <ion-title id="bienvenidaTitulo" style="font-size: clamp(1.2rem, 4vw, 1.5rem); 
                        margin-bottom: 0.5rem;
                        padding: 0 10px;
@@ -37,13 +49,15 @@
         Bienvenido a BLINDWAY
       </ion-title>
 
+      <!-- Texto informativo debajo del título -->
       <p style="font-size: 1.1rem; margin-bottom: 2rem;">
         Elige la función que vas a usar
       </p>
 
-      <!-- Contenedor principal para las columnas -->
+      <!-- Contenedor con dos columnas de botones -->
       <div style="display: flex; gap: 16px; width: 100%;">
-        <!-- Columna izquierda -->
+
+        <!-- Columna izquierda: guía visual y guía sonora -->
         <div style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem;">
           <ion-button expand="block"
                       size="large"
@@ -62,7 +76,7 @@
           </ion-button>
         </div>
 
-        <!-- Columna derecha -->
+        <!-- Columna derecha: ajustes y llamada de ayuda -->
         <div style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem;">
           <ion-button expand="block"
                       size="large"
@@ -80,6 +94,7 @@
             LLAMADA DE AYUDA
           </ion-button>
         </div>
+
       </div>
     </div>
   </div>
