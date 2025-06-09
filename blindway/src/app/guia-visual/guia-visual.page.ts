@@ -213,8 +213,10 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
     const avgRssi = this.rssiHistory[mac].reduce((a, b) => a + b) / this.rssiHistory[mac].length;
 
     const beaconIndex = this.beacons.findIndex(b => b.address === mac);
+    const beaconName = this.getCustomName(mac) ?? 'Baliza';
+
     const updatedBeacon = {
-      name: result.localName || 'Unknown Beacon',
+      name: beaconName || "Baliza",
       address: mac,
       rssi: avgRssi,
       distance: this.calculateDistance(avgRssi),
@@ -229,6 +231,16 @@ export class GuiaVisualPage implements OnInit, OnDestroy {
 
     // Ordena las balizas por distancia
     this.beacons.sort((a, b) => a.distance - b.distance);
+  }
+
+  getCustomName(mac: string): string | null {
+    const macNames: { [key: string]: string } = {
+      'D8:DE:11:70:B3:0A': 'Escaleras',
+      'F7:31:A1:31:5E:5B': 'Cafetería',
+      'D7:9B:16:04:4C:C0': 'Salón de Actos',
+      'F5:16:21:95:E9:C2': 'Secretaría'
+    };
+    return macNames[mac] || null;
   }
 
   updateDirection() {
