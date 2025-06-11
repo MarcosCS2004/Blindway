@@ -1,10 +1,20 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule, AlertController } from '@ionic/angular';
 import { BleClient } from '@capacitor-community/bluetooth-le';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Motion } from '@capacitor/motion';
+import { Router, NavigationStart } from '@angular/router';
+import { Subscription } from 'rxjs';
 
+interface Beacon {
+  name: string;
+  address: string;
+  rssi: number;
+  distance: number;
+  lastSeen: Date;
+}
 @Component({
   selector: 'app-guia-sonora',
   templateUrl: './guia-sonora.page.html',
@@ -13,153 +23,163 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
   imports: [IonicModule, CommonModule]
 })
 export class GuiaSonoraPage implements OnInit, OnDestroy {
-  beacons: any[] = [];
+  beacons: Beacon[] = [];
   isScanning = false;
   signalStrength = 0;
   directionAngle = 0;
   currentHeading = 0;
-  selectedBeacon: any = null;
+  selectedBeacon: Beacon | null = null;
   signalReliability: 'Alta' | 'Media' | 'Baja' = 'Alta';
-  private orientationListener: any;
+  private motionHandle?: any;
   private scanTimeout: any;
-  private directionInterval: any;
+  private visualInterval: any = null;
+  private soundInterval: any = null;
+  private vibrationInterval: any = null;
+  private lastVibrationTime = 0;
+  private lastPulseRate = 0;
+  private lastNotificationTime = 0;
+  private navigationSub?: Subscription;
   private rssiHistory: { [mac: string]: number[] } = {};
-  lastNotificationTime = 0;
-  allowedMacs: string[] = [
+
+  allowedMacs = [
     'D8:DE:11:70:B3:0A',
     'F7:31:A1:31:5E:5B',
     'D7:9B:16:04:4C:C0',
     'F5:16:21:95:E9:C2'
   ];
 
-  constructor(private alertController: AlertController) {}
+  constructor(
+    private alertController: AlertController,
+    private router: Router,
+    private ngZone: NgZone
+  ) {}
 
   ngOnInit() {
     this.initializeBle();
     this.startCompass();
-    this.startDirectionUpdater();
+    this.startVisualUpdater();
+    this.startSoundGuidance();
     this.speak('Guía visual iniciada. Iniciando escaneo de balizas.');
+
+    this.navigationSub = this.router.events.subscribe(event => {
+      if (event instanceof NavigationStart) {
+        this.cleanUp();
+      }
+    });
   }
 
-  ngOnDestroy() {
+  async ngOnDestroy() {
+    await this.cleanUp();
+    this.navigationSub?.unsubscribe();
+  }
+
+  ionViewWillLeave() {
+    this.cleanUp();
+  }
+
+  private async cleanUp() {
     this.stopScan();
-    this.stopDirectionUpdater();
-    window.removeEventListener('deviceorientationabsolute', this.orientationListener);
-    this.speak('Guía visual detenida.');
+    this.stopVisualUpdater();
+    this.stopSoundGuidance();
+    this.stopPulsedVibration();
+    if (this.motionHandle) {
+      await this.motionHandle.remove();
+      this.motionHandle = undefined;
+    }
+    await TextToSpeech.stop();
+    BleClient.stopLEScan().catch(() => {});
+    this.speak('Guía sonora detenida.');
   }
 
-  async initializeBle() {
+  private async initializeBle() {
     try {
       await BleClient.initialize();
-      console.log('BLE initialized');
-      this.speak('Bluetooth inicializado.');
+      this.speak('Buscando Balizas');
     } catch (error) {
-      console.error('BLE initialization error', error);
+      console.error(error);
       this.speak('Error al inicializar Bluetooth.');
     }
   }
 
-  async speak(text: string) {
-    await TextToSpeech.speak({
-      text: text,
-      lang: 'es-ES',
-      rate: 1.0,
-      pitch: 1.0,
-      volume: 1.0,
-    });
-  }
-
-  async vibrate(style: ImpactStyle = ImpactStyle.Medium) {
+  private async speak(text: string) {
     try {
+      await TextToSpeech.speak({ text, lang: 'es-ES', rate: 1.0, pitch: 1.0, volume: 1.0 });
+    } catch (e) {
+      console.warn('TTS fallo', e);
+    }
+  }
+
+  private async vibrate(style: ImpactStyle) {
+    const now = Date.now();
+    if (now - this.lastVibrationTime > 2000) {
       await Haptics.impact({ style });
+      this.lastVibrationTime = now;
+    }
+  }
+
+  async startCompass() {
+    try {
+      const permission = (DeviceOrientationEvent as any)?.requestPermission;
+      if (permission) {
+        const result = await permission();
+        if (result !== 'granted') return;
+      }
+
+      const listener = await Motion.addListener('orientation', (event: any) => {
+        const alpha = event.alpha;
+        if (alpha !== undefined && alpha !== null) {
+          this.currentHeading = alpha;
+          this.updateDirection(); 
+        }
+      });
+
+      this.motionHandle = listener;
     } catch (error) {
-      console.warn('Haptics not supported or failed:', error);
+      console.error('Error al iniciar la brújula', error);
     }
-  }
-
-  selectBeacon(beacon: any) {
-    this.selectedBeacon = beacon;
-    this.speak(`Baliza seleccionada: ${beacon.mac}`);
-    this.vibrate(ImpactStyle.Light);
-  }
-
-  updateSignalStrength(rssi: number) {
-    this.signalStrength = rssi;
-    if (rssi > -60) {
-      this.speak('Estás muy cerca de la baliza.');
-      this.vibrate(ImpactStyle.Heavy);
-    } else if (rssi < -90) {
-      this.speak('Señal muy débil.');
-      this.vibrate(ImpactStyle.Light);
-    }
-  }
-
-  notifyNoBeaconsFound() {
-    this.speak('No hay balizas cercanas disponibles.');
-    this.vibrate(ImpactStyle.Light);
   }
 
   async startScan() {
+    if (this.isScanning) return;
     this.isScanning = true;
-    this.speak('Escaneo iniciado. Buscando balizas cercanas.');
-    this.vibrate();
+    this.speak('Escaneo iniciado...');
+    this.vibrate(ImpactStyle.Light);
     this.beacons = [];
     this.rssiHistory = {};
 
     try {
-      // Solicita permisos de geolocalización si están disponibles
-      if ('permissions' in navigator) {
-        try {
-          const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-          if (permissionStatus.state !== 'granted') {
-            console.warn('Permiso de ubicación no concedido. BLE puede no funcionar correctamente.');
-          }
-        } catch (permErr) {
-          console.warn('Error al verificar permisos de geolocalización:', permErr);
-        }
+      const perm = await navigator.permissions.query({ name: 'geolocation' as any }).catch(() => null);
+      if (perm && perm.state !== 'granted') {
+        console.warn('Falta permiso de ubicación');
       }
+    } catch {}
 
-      // Inicia escaneo BLE
-      await BleClient.requestLEScan(
-        {},
-        (result) => {
-          // Procesa solo si hay una MAC válida
-          if (!result?.device?.deviceId) return;
-          const mac = result.device.deviceId.toUpperCase();
-          this.processBeacon({ ...result, device: { deviceId: mac } });
-        }
-      );
+    await BleClient.requestLEScan({}, result => {
+      const mac = result.device.deviceId?.toUpperCase();
+      if (!mac) return;
+      this.ngZone.run(() => this.processBeacon({ ...result, device: { deviceId: mac } }));
+    });
 
-      // Finaliza escaneo automáticamente tras 15 segundos
-      this.scanTimeout = setTimeout(() => {
-        this.stopScan();
-        if (this.beacons.length === 0) {
-          this.showNoBeaconsAlert();
-        } else if (!this.selectedBeacon) {
-          this.selectedBeacon = this.beacons[0]; // Selecciona la más cercana
-        }
-      }, 15000);
-
-    } catch (error) {
-      console.error('Scan error', error);
-      this.isScanning = false;
-    }
+    this.scanTimeout = setTimeout(() => {
+      this.stopScan();
+      if (this.beacons.length === 0) {
+        this.showNoBeaconsAlert();
+      } else if (!this.selectedBeacon) {
+        this.selectedBeacon = this.beacons[0];
+      }
+    }, 15000);
   }
 
   stopScan() {
-    // Detiene el escaneo BLE y elimina timeout
-    BleClient.stopLEScan();
+    BleClient.stopLEScan().catch(() => {});
     this.isScanning = false;
     this.speak('Escaneo detenido.');
-    this.vibrate();
-    if (this.scanTimeout) {
-      clearTimeout(this.scanTimeout);
-      this.scanTimeout = null;
-    }
+    this.vibrate(ImpactStyle.Light);
+    clearTimeout(this.scanTimeout);
+    this.scanTimeout = null;
   }
 
-  async showNoBeaconsAlert() {
-    // Alerta si no se detectan balizas
+  private async showNoBeaconsAlert() {
     const alert = await this.alertController.create({
       header: 'Sin balizas detectadas',
       message: 'No se han encontrado balizas BLE después de 15 segundos.',
@@ -195,22 +215,10 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     }
   }
 
-  startCompass() {
-    // Escucha eventos de orientación absoluta del dispositivo
-    this.orientationListener = (event: DeviceOrientationEvent) => {
-      const heading = event.alpha ?? 0;
-      this.currentHeading = heading;
-      this.updateDirection(); // Actualiza dirección al rotar
-    };
-
-    window.addEventListener('deviceorientationabsolute', this.orientationListener, true);
-  }
-
-  startDirectionUpdater() {
-    // Refresca dirección y fiabilidad de señal cada 100 ms
-    this.directionInterval = setInterval(() => {
+  startVisualUpdater() {
+    this.visualInterval = setInterval(() => {
       if (this.selectedBeacon) {
-        const updated = this.beacons.find(b => b.address === this.selectedBeacon.address);
+        const updated = this.beacons.find(b => b.address === this.selectedBeacon?.address);
         if (updated) {
           this.signalStrength = this.mapRssiToStrength(updated.rssi);
           this.selectedBeacon.rssi = updated.rssi;
@@ -222,10 +230,62 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     }, 100);
   }
 
-  stopDirectionUpdater() {
-    if (this.directionInterval) {
-      clearInterval(this.directionInterval);
-      this.directionInterval = null;
+
+  startSoundGuidance() {
+    this.soundInterval = setInterval(() => {
+      if (this.selectedBeacon) {
+        const distance = this.selectedBeacon.distance || 99;
+        const angleDiff = Math.abs(this.normalizeAngle(this.directionAngle));
+        const now = Date.now();
+        const speakCooldown = 5000;
+
+        if (angleDiff < 15) {
+          if (now - this.lastNotificationTime > speakCooldown) {
+            this.speak('Estás yendo en la dirección correcta.');
+            this.lastNotificationTime = now;
+          }
+          this.vibrate(ImpactStyle.Heavy);
+        } else if (angleDiff < 90) {
+          if (now - this.lastNotificationTime > speakCooldown) {
+            this.speak('No estás yendo en la dirección correcta, gira un poco.');
+            this.lastNotificationTime = now;
+          }
+          this.vibrate(ImpactStyle.Medium);
+        } else {
+          if (now - this.lastNotificationTime > speakCooldown) {
+            this.speak('Te estás alejando. Da la vuelta.');
+            this.lastNotificationTime = now;
+          }
+          this.vibrate(ImpactStyle.Heavy);
+        }
+      }
+    }, 1500);
+  }
+
+  private normalizeAngle(angle: number): number {
+    let normalized = ((angle + 180) % 360 + 360) % 360 - 180;
+    return normalized;
+  }
+
+  stopVisualUpdater() {
+    if (this.visualInterval) {
+      clearInterval(this.visualInterval);
+      this.visualInterval = null;
+    }
+  }
+
+  stopSoundGuidance() {
+    if (this.soundInterval) {
+      clearInterval(this.soundInterval);
+      this.soundInterval = null;
+    }
+  }
+
+  stopPulsedVibration() {
+    if (this.vibrationInterval) {
+      clearInterval(this.vibrationInterval);
+      this.vibrationInterval = null;
+      this.lastPulseRate = 0;
     }
   }
 
@@ -247,8 +307,10 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     const avgRssi = this.rssiHistory[mac].reduce((a, b) => a + b) / this.rssiHistory[mac].length;
 
     const beaconIndex = this.beacons.findIndex(b => b.address === mac);
+    const beaconName = this.getCustomName(mac) ?? 'Baliza';
+
     const updatedBeacon = {
-      name: result.localName || 'Unknown Beacon',
+      name: beaconName || "Baliza",
       address: mac,
       rssi: avgRssi,
       distance: this.calculateDistance(avgRssi),
@@ -265,31 +327,81 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     this.beacons.sort((a, b) => a.distance - b.distance);
   }
 
-  updateDirection() {
+  getCustomName(mac: string): string | null {
+    const macNames: { [key: string]: string } = {
+      'D8:DE:11:70:B3:0A': 'Escaleras',
+      'F7:31:A1:31:5E:5B': 'Cafetería',
+      'D7:9B:16:04:4C:C0': 'Salón de Actos',
+      'F5:16:21:95:E9:C2': 'Secretaría'
+    };
+    return macNames[mac] || null;
+  }
+
+  private updateDirection() {
     if (!this.selectedBeacon) return;
 
-    // Calcula variación de ángulo basada en la señal
-    const angleVariation = (100 - this.signalStrength) * 3.6;
-    const correctedAngle = (this.currentHeading + angleVariation) % 360;
-    const angleDiff = Math.abs(this.directionAngle - this.currentHeading);
+    // Simulamos que la baliza está "al norte" (0°)
+    const angleToBeacon = 0; // Puedes mejorar esto si tienes más datos
+    const heading = this.currentHeading;
+
+    // Calcula el ángulo de giro que necesita la flecha
+    this.directionAngle = (angleToBeacon - heading + 360) % 360;
+
+    // Ahora haz la lógica de voz y vibración según el nuevo ángulo
+    const angleDiff = Math.abs(this.directionAngle);
+
+    const now = Date.now();
+    const speakCooldown = 4000;
+    const vibrationCooldown = 3000;
 
     if (angleDiff < 15) {
-      this.speak('Estás yendo en la dirección correcta.');
-      this.vibrate(ImpactStyle.Heavy);
+      if (now - this.lastNotificationTime > speakCooldown) {
+        this.speak('Estás yendo en la dirección correcta.');
+        this.lastNotificationTime = now;
+      }
+      if (now - this.lastVibrationTime > vibrationCooldown) {
+        this.vibrate(ImpactStyle.Medium);
+        this.lastVibrationTime = now;
+      }
     } else if (angleDiff < 90) {
-      this.speak('Gira ligeramente hacia la baliza.');
-      this.vibrate(ImpactStyle.Medium);
+      if (now - this.lastNotificationTime > speakCooldown) {
+        this.speak('No estás yendo en la dirección correcta, gira un poco.');
+        this.lastNotificationTime = now;
+      }
+      if (now - this.lastVibrationTime > vibrationCooldown) {
+        this.vibrate(ImpactStyle.Medium);
+        this.lastVibrationTime = now;
+      }
     } else {
-      this.speak('Te estás alejando. Da la vuelta.');
-      this.vibrate(ImpactStyle.Heavy);
+      if (now - this.lastNotificationTime > speakCooldown) {
+        this.speak('Te estás alejando. Da la vuelta.');
+        this.lastNotificationTime = now;
+      }
+      if (now - this.lastVibrationTime > vibrationCooldown) {
+        this.vibrate(ImpactStyle.Heavy);
+        this.lastVibrationTime = now;
+      }
+    }
+  }
+
+  updatePulsedVibration(distance: number) {
+    if (distance < 0 || isNaN(distance)) return;
+
+    // Cuanto más cerca, más rápido vibra. Asegura que esté entre 200ms y 2000ms.
+    const pulseRate = Math.max(200, Math.min(2000, distance * 1000));
+
+    if (this.vibrationInterval && this.lastPulseRate === pulseRate) return;
+
+    // Reinicia el intervalo si ha cambiado
+    if (this.vibrationInterval) {
+      clearInterval(this.vibrationInterval);
     }
 
-    // Suaviza el cambio de dirección para evitar saltos bruscos
-    let delta = correctedAngle - this.directionAngle;
-    delta = ((delta + 540) % 360) - 180;
-    this.directionAngle += delta * 0.25;
+    this.vibrationInterval = setInterval(() => {
+      this.vibrate(ImpactStyle.Medium);
+    }, pulseRate);
 
-    this.checkAlignmentAndNotify();
+    this.lastPulseRate = pulseRate;
   }
 
   calculateDistance(rssi: number): number {
