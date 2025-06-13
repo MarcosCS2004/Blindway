@@ -234,7 +234,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
           this.updateDirection();
         }
       }
-    }, 1000); // mejor cada 1000 ms, no cada 100 para evitar saturar GPS
+    }, 250); 
   }
 
 
@@ -345,6 +345,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
       'F7:31:A1:31:5E:5B': 'Cafetería',
       'D7:9B:16:04:4C:C0': 'Salón de Actos',
       'F5:16:21:95:E9:C2': 'Secretaría'
+      //nueva baliza
     };
     return macNames[mac] || null;
   }
@@ -487,10 +488,11 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
 
   getBeaconCoordinates(mac: string): { latitude: number, longitude: number } | null {
     const coordinates: { [mac: string]: { latitude: number, longitude: number } } = {
-      'D8:DE:11:70:B3:0A': { latitude: 40.4168, longitude: -3.7038 }, // Escaleras
-      'F7:31:A1:31:5E:5B': { latitude: 40.4175, longitude: -3.7040 }, // Cafetería
-      'D7:9B:16:04:4C:C0': { latitude: 40.4170, longitude: -3.7030 }, // Salón de Actos
-      'F5:16:21:95:E9:C2': { latitude: 40.4180, longitude: -3.7020 }  // Secretaría
+      'D8:DE:11:70:B3:0A': { latitude: 40.47343, longitude: -3.69749 }, // Escaleras
+      'F7:31:A1:31:5E:5B': { latitude: 40.47328, longitude: -3.69768 }, // Cafetería
+      'D7:9B:16:04:4C:C0': { latitude: 40.47350, longitude: -3.69722 }, // Salón de Actos
+      'F5:16:21:95:E9:C2': { latitude: 40.47355, longitude: -3.69690 }  // Secretaría
+      //lat: 40.47330 long: -3.69762 
     };
     return coordinates[mac] || null;
   }
