@@ -7,6 +7,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Motion } from '@capacitor/motion';
 import { Router, NavigationStart } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { Geolocation } from '@capacitor/geolocation';
 
 interface Beacon {
   name: string;
@@ -14,6 +15,8 @@ interface Beacon {
   rssi: number;
   distance: number;
   lastSeen: Date;
+  latitude: number;
+  longitude: number;
 }
 @Component({
   selector: 'app-guia-sonora',
@@ -28,6 +31,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
   signalStrength = 0;
   directionAngle = 0;
   currentHeading = 0;
+  currentPosition: { latitude: number, longitude: number } | null = null;
   selectedBeacon: Beacon | null = null;
   signalReliability: 'Alta' | 'Media' | 'Baja' = 'Alta';
   private motionHandle?: any;
@@ -55,6 +59,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    this.updateCurrentPosition();
     this.initializeBle();
     this.startCompass();
     this.startVisualUpdater();
@@ -216,7 +221,9 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
   }
 
   startVisualUpdater() {
-    this.visualInterval = setInterval(() => {
+    this.visualInterval = setInterval(async () => {
+      await this.updateCurrentPosition(); // 👈 Actualiza la ubicación en cada ciclo
+
       if (this.selectedBeacon) {
         const updated = this.beacons.find(b => b.address === this.selectedBeacon?.address);
         if (updated) {
@@ -227,7 +234,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
           this.updateDirection();
         }
       }
-    }, 100);
+    }, 1000); // mejor cada 1000 ms, no cada 100 para evitar saturar GPS
   }
 
 
@@ -309,12 +316,17 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     const beaconIndex = this.beacons.findIndex(b => b.address === mac);
     const beaconName = this.getCustomName(mac) ?? 'Baliza';
 
+    const coords = this.getBeaconCoordinates(mac);
+    if (!coords) return;
+
     const updatedBeacon = {
       name: beaconName || "Baliza",
       address: mac,
       rssi: avgRssi,
       distance: this.calculateDistance(avgRssi),
-      lastSeen: new Date()
+      lastSeen: new Date(),
+      latitude: coords.latitude,
+      longitude: coords.longitude
     };
 
     if (beaconIndex === -1) {
@@ -338,23 +350,27 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
   }
 
   private updateDirection() {
-    if (!this.selectedBeacon) return;
+    if (!this.selectedBeacon || !this.currentPosition) return;
 
-    // Simulamos que la baliza está "al norte" (0°)
-    const angleToBeacon = 0; // Puedes mejorar esto si tienes más datos
-    const heading = this.currentHeading;
+    const beaconLat = this.selectedBeacon.latitude;
+    const beaconLng = this.selectedBeacon.longitude;
 
-    // Calcula el ángulo de giro que necesita la flecha
+    const userLat = this.currentPosition.latitude;
+    const userLng = this.currentPosition.longitude;
+
+    // Calcula el ángulo real hacia la baliza desde tu posición
+    const angleToBeacon = this.getBearing(userLat, userLng, beaconLat, beaconLng);
+
+    // Usa tu orientación actual para calcular la diferencia con respecto al beacon
+    const heading = this.currentHeading; // del giroscopio / brújula
     this.directionAngle = (angleToBeacon - heading + 360) % 360;
 
-    // Ahora haz la lógica de voz y vibración según el nuevo ángulo
-    const angleDiff = Math.abs(this.directionAngle);
-
+    const angle = this.directionAngle;
     const now = Date.now();
     const speakCooldown = 4000;
     const vibrationCooldown = 3000;
 
-    if (angleDiff < 15) {
+    if (angle <= 15 || angle >= 345) {
       if (now - this.lastNotificationTime > speakCooldown) {
         this.speak('Estás yendo en la dirección correcta.');
         this.lastNotificationTime = now;
@@ -363,9 +379,18 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
         this.vibrate(ImpactStyle.Medium);
         this.lastVibrationTime = now;
       }
-    } else if (angleDiff < 90) {
+    } else if (angle > 15 && angle < 90) {
       if (now - this.lastNotificationTime > speakCooldown) {
-        this.speak('No estás yendo en la dirección correcta, gira un poco.');
+        this.speak('No estás yendo en la dirección correcta, gira un poco a la izquierda.');
+        this.lastNotificationTime = now;
+      }
+      if (now - this.lastVibrationTime > vibrationCooldown) {
+        this.vibrate(ImpactStyle.Medium);
+        this.lastVibrationTime = now;
+      }
+    } else if (angle > 270 && angle < 345) {
+      if (now - this.lastNotificationTime > speakCooldown) {
+        this.speak('No estás yendo en la dirección correcta, gira un poco a la derecha.');
         this.lastNotificationTime = now;
       }
       if (now - this.lastVibrationTime > vibrationCooldown) {
@@ -383,6 +408,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
       }
     }
   }
+
 
   updatePulsedVibration(distance: number) {
     if (distance < 0 || isNaN(distance)) return;
@@ -433,4 +459,40 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     if (variance < 10) return 'Media';
     return 'Baja';
   }
+
+  private getBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const toRadians = (deg: number) => deg * Math.PI / 180;
+    const toDegrees = (rad: number) => rad * 180 / Math.PI;
+
+    const dLon = toRadians(lon2 - lon1);
+    const y = Math.sin(dLon) * Math.cos(toRadians(lat2));
+    const x = Math.cos(toRadians(lat1)) * Math.sin(toRadians(lat2)) -
+              Math.sin(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.cos(dLon);
+
+    const brng = Math.atan2(y, x);
+    return (toDegrees(brng) + 360) % 360;
+  }
+
+  private async updateCurrentPosition() {
+    try {
+      const position = await Geolocation.getCurrentPosition();
+      this.currentPosition = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      };
+    } catch (error) {
+      console.error('No se pudo obtener la ubicación actual:', error);
+    }
+  }
+
+  getBeaconCoordinates(mac: string): { latitude: number, longitude: number } | null {
+    const coordinates: { [mac: string]: { latitude: number, longitude: number } } = {
+      'D8:DE:11:70:B3:0A': { latitude: 40.4168, longitude: -3.7038 }, // Escaleras
+      'F7:31:A1:31:5E:5B': { latitude: 40.4175, longitude: -3.7040 }, // Cafetería
+      'D7:9B:16:04:4C:C0': { latitude: 40.4170, longitude: -3.7030 }, // Salón de Actos
+      'F5:16:21:95:E9:C2': { latitude: 40.4180, longitude: -3.7020 }  // Secretaría
+    };
+    return coordinates[mac] || null;
+  }
+
 }
