@@ -1,3 +1,12 @@
+/****************************************************************************************
+ *  GuiaSonoraPage – Navegación sonora asistida por balizas BLE + brújula + GPS
+ *
+ *  • Escanea balizas BLE filtradas por MAC
+ *  • Calcula la dirección real (bearing) usando GPS + heading del dispositivo
+ *  • Indica al usuario con voz y vibración cómo orientarse
+ *  • Mensajes personalizados cuando el usuario está muy cerca (< 1,5 m)
+ ****************************************************************************************/
+
 import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule, AlertController } from '@ionic/angular';
@@ -9,6 +18,7 @@ import { Router, NavigationStart } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { Geolocation } from '@capacitor/geolocation';
 
+// Estructura de datos que representa una baliza BLE */
 interface Beacon {
   name: string;
   address: string;
@@ -18,6 +28,7 @@ interface Beacon {
   latitude: number;
   longitude: number;
 }
+
 @Component({
   selector: 'app-guia-sonora',
   templateUrl: './guia-sonora.page.html',
@@ -25,31 +36,46 @@ interface Beacon {
   standalone: true,
   imports: [IonicModule, CommonModule]
 })
+
 export class GuiaSonoraPage implements OnInit, OnDestroy {
-  beacons: Beacon[] = [];
-  isScanning = false;
-  signalStrength = 0;
-  directionAngle = 0;
-  currentHeading = 0;
-  currentPosition: { latitude: number, longitude: number } | null = null;
-  selectedBeacon: Beacon | null = null;
-  signalReliability: 'Alta' | 'Media' | 'Baja' = 'Alta';
+
+  beacons: Beacon[] = []; // Balizas detectadas ordenadas por distancia
+  isScanning = false;     // Flag de escaneo BLE activo
+  signalStrength = 0;     // RSSI en % de la baliza seleccionada
+  directionAngle = 0;     // Ángulo suavizado para la flecha (0–360 °)
+  currentHeading = 0;     // Rumbo del dispositivo (brújula α)
+  currentPosition: { latitude: number, longitude: number } | null = null; // Posición GPS
+
+  selectedBeacon: Beacon | null = null; // Baliza Seleccionada
+  signalReliability: 'Alta' | 'Media' | 'Baja' = 'Alta'; // Calidad de señal
+
+  // Manejadores / ids para cancelar listeners e intervalos 
   private motionHandle?: any;
   private scanTimeout: any;
   private visualInterval: any = null;
   private soundInterval: any = null;
   private vibrationInterval: any = null;
+  private geoWatchId: string | null = null;
+
+  // Timestamps y cache para cooldowns / suavizados 
   private lastVibrationTime = 0;
   private lastPulseRate = 0;
   private lastNotificationTime = 0;
+
+  // Utilidades de navegación y filtro de RSSI 
   private navigationSub?: Subscription;
   private rssiHistory: { [mac: string]: number[] } = {};
 
+  // Controla qué balizas ya han emitido su mensaje “has llegado” 
+  private notifiedBeacons: { [mac: string]: boolean } = {};
+
+  // Whitelist de MACs válidas 
   allowedMacs = [
     'D8:DE:11:70:B3:0A',
     'F7:31:A1:31:5E:5B',
     'D7:9B:16:04:4C:C0',
-    'F5:16:21:95:E9:C2'
+    'F5:16:21:95:E9:C2',
+    'E3:B3:F9:53:28:5F'
   ];
 
   constructor(
@@ -58,14 +84,20 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     private ngZone: NgZone
   ) {}
 
+  //────────────────────────── CICLO DE VIDA ──────────────────────────
   ngOnInit() {
+    // 1) Posición inicial y watcher de GPS
     this.updateCurrentPosition();
+    this.startWatchingPosition();
+
+    // 2) Sensores y procesos principales
     this.initializeBle();
     this.startCompass();
     this.startVisualUpdater();
     this.startSoundGuidance();
-    this.speak('Guía visual iniciada. Iniciando escaneo de balizas.');
 
+    // 3) Mensaje de bienvenida y cleanup si se navega fuera
+    this.speak('Guía visual iniciada.');
     this.navigationSub = this.router.events.subscribe(event => {
       if (event instanceof NavigationStart) {
         this.cleanUp();
@@ -82,20 +114,34 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     this.cleanUp();
   }
 
+  //─────────────────────────── LIMPIEZA ───────────────────────────
+
+  // Detiene todos los sensores, intervalos y audio activos 
   private async cleanUp() {
+    await TextToSpeech.stop();   // Corta cualquier voz en curso
     this.stopScan();
     this.stopVisualUpdater();
     this.stopSoundGuidance();
     this.stopPulsedVibration();
+    
+     // Detiene watcher GPS
+    if (this.geoWatchId) {                          
+      Geolocation.clearWatch({ id: this.geoWatchId });
+      this.geoWatchId = null;
+    }
+
+     // Detiene brújula
     if (this.motionHandle) {
       await this.motionHandle.remove();
       this.motionHandle = undefined;
     }
-    await TextToSpeech.stop();
+
+    // Asegura parar BLE
     BleClient.stopLEScan().catch(() => {});
     this.speak('Guía sonora detenida.');
   }
 
+  //────────────────────────── INICIALIZAR BLE ──────────────────────────
   private async initializeBle() {
     try {
       await BleClient.initialize();
@@ -106,14 +152,19 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     }
   }
 
+  //────────────────────────── UTILIDADES DE VOZ & VIBRACIÓN ─────────────────
+
+  // Habla usando TTS – detiene primero cualquier mensaje previo 
   private async speak(text: string) {
     try {
+      await TextToSpeech.stop(); 
       await TextToSpeech.speak({ text, lang: 'es-ES', rate: 1.0, pitch: 1.0, volume: 1.0 });
     } catch (e) {
       console.warn('TTS fallo', e);
     }
   }
 
+  // Vibración con cooldown de 2 s para no saturar 
   private async vibrate(style: ImpactStyle) {
     const now = Date.now();
     if (now - this.lastVibrationTime > 2000) {
@@ -122,8 +173,12 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     }
   }
 
+  //─────────────────────── BRÚJULA (Motion API) ───────────────────────
+
+  // Escucha eventos de orientación absoluta y actualiza currentHeading 
   async startCompass() {
     try {
+      // En iOS WebView hay que pedir permiso explícito
       const permission = (DeviceOrientationEvent as any)?.requestPermission;
       if (permission) {
         const result = await permission();
@@ -133,8 +188,8 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
       const listener = await Motion.addListener('orientation', (event: any) => {
         const alpha = event.alpha;
         if (alpha !== undefined && alpha !== null) {
-          this.currentHeading = alpha;
-          this.updateDirection(); 
+          this.currentHeading = alpha;  // 0–360°
+          this.updateDirection();       // Recalcula flecha en tiempo real
         }
       });
 
@@ -144,6 +199,9 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     }
   }
 
+  //─────────────────────────── ESCANEO BLE ───────────────────────────
+
+  // Inicia el escaneo con filtro de MACs y timeout de 15 s 
   async startScan() {
     if (this.isScanning) return;
     this.isScanning = true;
@@ -152,6 +210,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     this.beacons = [];
     this.rssiHistory = {};
 
+    // Solicita permiso de localización si es necesario
     try {
       const perm = await navigator.permissions.query({ name: 'geolocation' as any }).catch(() => null);
       if (perm && perm.state !== 'granted') {
@@ -159,22 +218,26 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
       }
     } catch {}
 
+    // Comienza el LE Scan
     await BleClient.requestLEScan({}, result => {
       const mac = result.device.deviceId?.toUpperCase();
       if (!mac) return;
+      // Ejecuta en zona Angular para refrescar UI
       this.ngZone.run(() => this.processBeacon({ ...result, device: { deviceId: mac } }));
     });
 
+    // Detén escaneo a los 15 s
     this.scanTimeout = setTimeout(() => {
       this.stopScan();
       if (this.beacons.length === 0) {
         this.showNoBeaconsAlert();
       } else if (!this.selectedBeacon) {
-        this.selectedBeacon = this.beacons[0];
+        this.selectedBeacon = this.beacons[0]; // Selecciona la más cercana
       }
     }, 15000);
   }
 
+  // Detiene el escaneo y limpia timeout 
   stopScan() {
     BleClient.stopLEScan().catch(() => {});
     this.isScanning = false;
@@ -184,6 +247,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     this.scanTimeout = null;
   }
 
+  // Alerta modal cuando no se encuentran balizas 
   private async showNoBeaconsAlert() {
     const alert = await this.alertController.create({
       header: 'Sin balizas detectadas',
@@ -203,27 +267,20 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     await alert.present();
   }
 
-  async checkAlignmentAndNotify() {
-    // Notifica con un sonido si la dirección está alineada (dentro de margen)
-    const margin = 2;
-    const now = Date.now();
-    const cooldown = 2000;
-    const normalized = (this.directionAngle % 360 + 360) % 360;
-
-    if ((normalized >= (360 - margin) || normalized <= margin) &&
-      now - this.lastNotificationTime > cooldown) {
-
-      this.lastNotificationTime = now;
-
-      const audio = new Audio('assets/sounds/bell.mp3');
-      audio.play().catch((e) => console.warn('Error al reproducir sonido', e));
-    }
-  }
-
+  //──────── ACTUALIZADOR VISUAL (señal + orientación) ─────────
+  // Intervalo muy rápido (100 ms) para mantener UI y cálculos frescos para un buen apuntado a la baliza
   startVisualUpdater() {
-    this.visualInterval = setInterval(async () => {
-      await this.updateCurrentPosition(); // 👈 Actualiza la ubicación en cada ciclo
+    this.visualInterval = setInterval(() => {
+      // Determina qué baliza es la más cercana y cambia si hace falta
+      if (this.beacons.length > 0) {
+        const closest = this.beacons[0];
+        if (!this.selectedBeacon || closest.address !== this.selectedBeacon.address) {
+          this.selectedBeacon = closest;
+          this.notifiedBeacons = {}; // Vuelve a permitir mensajes de “llegada”
+        }
+      }
 
+      // Actualiza datos de la baliza seleccionada
       if (this.selectedBeacon) {
         const updated = this.beacons.find(b => b.address === this.selectedBeacon?.address);
         if (updated) {
@@ -234,41 +291,36 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
           this.updateDirection();
         }
       }
-    }, 250); 
+    }, 100);
   }
 
+  //────────────────────── GUÍA SONORA CADA 1,5 s ──────────────────────
 
+  // Muestra mensaje de llegada a la baliza y una vibración
   startSoundGuidance() {
     this.soundInterval = setInterval(() => {
-      if (this.selectedBeacon) {
-        const distance = this.selectedBeacon.distance || 99;
-        const angleDiff = Math.abs(this.normalizeAngle(this.directionAngle));
-        const now = Date.now();
-        const speakCooldown = 5000;
+      if (!this.selectedBeacon) return;
 
-        if (angleDiff < 15) {
-          if (now - this.lastNotificationTime > speakCooldown) {
-            this.speak('Estás yendo en la dirección correcta.');
-            this.lastNotificationTime = now;
-          }
-          this.vibrate(ImpactStyle.Heavy);
-        } else if (angleDiff < 90) {
-          if (now - this.lastNotificationTime > speakCooldown) {
-            this.speak('No estás yendo en la dirección correcta, gira un poco.');
-            this.lastNotificationTime = now;
-          }
-          this.vibrate(ImpactStyle.Medium);
-        } else {
-          if (now - this.lastNotificationTime > speakCooldown) {
-            this.speak('Te estás alejando. Da la vuelta.');
-            this.lastNotificationTime = now;
-          }
-          this.vibrate(ImpactStyle.Heavy);
+      const distance = this.selectedBeacon.distance || 99;
+      const angleDiff = Math.abs(this.normalizeAngle(this.directionAngle));
+      const now = Date.now();
+      const speakCooldown = 5000; // Cooldown mensajes orientación
+      const mac = this.selectedBeacon.address;
+
+      // Lógica personalizada si estás MUY cerca de la baliza (< 1.5 m) y da un mensaje de “has llegado”
+      if (distance < 1.5 && !this.notifiedBeacons[mac]) {
+        const customMessage = this.getCustomArrivalMessage(mac);
+        if (customMessage) {
+          this.speak(customMessage);
+          this.notifiedBeacons[mac] = true;
+          this.vibrate(ImpactStyle.Heavy)
+          return; // evita seguir con los mensajes de orientación
         }
       }
     }, 1500);
   }
 
+  // Convierte ángulo 0–360 a rango –180…180 (útil para diferencias) 
   private normalizeAngle(angle: number): number {
     let normalized = ((angle + 180) % 360 + 360) % 360 - 180;
     return normalized;
@@ -295,7 +347,9 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
       this.lastPulseRate = 0;
     }
   }
-
+  //────────────────────────── PROCESAR BALIZA ─────────────────────────
+  
+  // Recibe cada “advertisement” BLE y actualiza/crea la baliza 
   processBeacon(result: any) {
     // Filtra por MAC autorizada
     const mac = result.device.deviceId;
@@ -339,17 +393,19 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     this.beacons.sort((a, b) => a.distance - b.distance);
   }
 
+  // Nombre Customizado para las valizas
   getCustomName(mac: string): string | null {
     const macNames: { [key: string]: string } = {
       'D8:DE:11:70:B3:0A': 'Escaleras',
       'F7:31:A1:31:5E:5B': 'Cafetería',
       'D7:9B:16:04:4C:C0': 'Salón de Actos',
-      'F5:16:21:95:E9:C2': 'Secretaría'
-      //nueva baliza
+      'F5:16:21:95:E9:C2': 'Secretaría',
+      'E3:B3:F9:53:28:5F': 'Intersección Cafetería y Entrada'
     };
     return macNames[mac] || null;
   }
 
+  // Emite voz, habla según rango, más el suavizado de la flecha para que funcione mejor.
   private updateDirection() {
     if (!this.selectedBeacon || !this.currentPosition) return;
 
@@ -364,13 +420,21 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
 
     // Usa tu orientación actual para calcular la diferencia con respecto al beacon
     const heading = this.currentHeading; // del giroscopio / brújula
-    this.directionAngle = (angleToBeacon - heading + 360) % 360;
+    
+    // Usa la diferencia real entre beacon y heading
+    const targetAngle = (angleToBeacon - heading + 360) % 360;
+
+    // Suavizado (25 % del delta)
+    let delta = targetAngle - this.directionAngle;
+    delta = ((delta + 540) % 360) - 180;
+    this.directionAngle += delta * 0.25;
 
     const angle = this.directionAngle;
     const now = Date.now();
     const speakCooldown = 4000;
     const vibrationCooldown = 3000;
-
+    
+    //Mensajes de voz principales
     if (angle <= 15 || angle >= 345) {
       if (now - this.lastNotificationTime > speakCooldown) {
         this.speak('Estás yendo en la dirección correcta.');
@@ -382,7 +446,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
       }
     } else if (angle > 15 && angle < 90) {
       if (now - this.lastNotificationTime > speakCooldown) {
-        this.speak('No estás yendo en la dirección correcta, gira un poco a la izquierda.');
+        this.speak('Gira un poco a la izquierda, te estás desviando.');
         this.lastNotificationTime = now;
       }
       if (now - this.lastVibrationTime > vibrationCooldown) {
@@ -391,7 +455,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
       }
     } else if (angle > 270 && angle < 345) {
       if (now - this.lastNotificationTime > speakCooldown) {
-        this.speak('No estás yendo en la dirección correcta, gira un poco a la derecha.');
+        this.speak('Gira un poco a la derecha, te estás desviando.');
         this.lastNotificationTime = now;
       }
       if (now - this.lastVibrationTime > vibrationCooldown) {
@@ -410,7 +474,8 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     }
   }
 
-
+  // Vibra en pulsos más rápidos cuanto menor es la distancia 
+  /*
   updatePulsedVibration(distance: number) {
     if (distance < 0 || isNaN(distance)) return;
 
@@ -429,7 +494,9 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     }, pulseRate);
 
     this.lastPulseRate = pulseRate;
-  }
+  }*/
+
+  //────────────────────── CONVERSIÓN RSSI → DISTANCIA ──────────────────
 
   calculateDistance(rssi: number): number {
     // Estima distancia basada en RSSI (modelo logarítmico)
@@ -461,6 +528,9 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     return 'Baja';
   }
 
+  //──────────────────── GEOUTILS: BEARING & COORDENADAS ────────────────
+  
+  // Devuelve el bearing entre dos pares lat/lon en grados (0–360)
   private getBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const toRadians = (deg: number) => deg * Math.PI / 180;
     const toDegrees = (rad: number) => rad * 180 / Math.PI;
@@ -486,15 +556,45 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
     }
   }
 
+  // Tabla fija MAC → coordenadas
   getBeaconCoordinates(mac: string): { latitude: number, longitude: number } | null {
     const coordinates: { [mac: string]: { latitude: number, longitude: number } } = {
-      'D8:DE:11:70:B3:0A': { latitude: 40.47343, longitude: -3.69749 }, // Escaleras
-      'F7:31:A1:31:5E:5B': { latitude: 40.47328, longitude: -3.69768 }, // Cafetería
-      'D7:9B:16:04:4C:C0': { latitude: 40.47350, longitude: -3.69722 }, // Salón de Actos
-      'F5:16:21:95:E9:C2': { latitude: 40.47355, longitude: -3.69690 }  // Secretaría
-      //lat: 40.47330 long: -3.69762 
+      'D8:DE:11:70:B3:0A': { latitude: 40.4734286, longitude: -3.6974712 }, // Escaleras
+      'F7:31:A1:31:5E:5B': { latitude: 40.4734276, longitude: -3.6974739 }, // Cafetería
+      'D7:9B:16:04:4C:C0': { latitude: 40.4735414, longitude: -3.6969087 }, // Salón de Actos
+      'F5:16:21:95:E9:C2': { latitude: 40.4734276, longitude: -3.6974739 }, // Secretaría
+      'E3:B3:F9:53:28:5F': { latitude: 40.4734276, longitude: -3.6974739 }  // Intersección
     };
     return coordinates[mac] || null;
+  }
+  // Fija desde donde estás haciendo el escaneo
+  private async startWatchingPosition() {
+    try {
+      this.geoWatchId = await Geolocation.watchPosition({}, position => {
+        if (position && position.coords) {
+          this.currentPosition = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          };
+        }
+      });
+    } catch (error) {
+      console.error('Error al iniciar watchPosition:', error);
+    }
+  }
+
+  //──────────────────────── MENSAJES PERSONALIZADOS ───────────────────
+  
+  // Devuelve el mensaje de llegada según la MAC (o null) 
+  private getCustomArrivalMessage(mac: string): string | null {
+    const messages: { [key: string]: string } = {
+      'D8:DE:11:70:B3:0A': 'Has llegado a las escaleras. Planta 1 dirección y planta 2 clases',
+      'F7:31:A1:31:5E:5B': 'Estás frente a la cafetería. Más adelante hay escalones ten cuidado',
+      'D7:9B:16:04:4C:C0': 'Estás junto al salón de actos. Más adelante hay escalones ten cuidado',
+      'F5:16:21:95:E9:C2': 'Has llegado a secretaría.',
+      'E3:B3:F9:53:28:5F': 'Estás en el cruce entre la cafetería y la entrada'
+    };
+    return messages[mac] || null;
   }
 
 }
