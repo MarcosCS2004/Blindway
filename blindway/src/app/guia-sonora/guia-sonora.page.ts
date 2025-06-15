@@ -500,7 +500,7 @@ export class GuiaSonoraPage implements OnInit, OnDestroy {
 
   calculateDistance(rssi: number): number {
     // Estima distancia basada en RSSI (modelo logarítmico)
-    const txPower = -59;
+    const txPower = -55;
     if (rssi === 0) return -1;
     const ratio = rssi / txPower;
     return ratio < 1.0
